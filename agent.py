@@ -18,8 +18,8 @@ class AGENT:
 	def __init__(self):
 		# dati api
 		self.api_url = "https://api.kraken.com"
-		self.api_key = "a"#os.environ['API_KEY']
-		self.api_sec = "a"#os.environ['API_SEC']
+		self.api_key = os.environ['API_KEY']
+		self.api_sec = os.environ['API_SEC']
 
 		# parametri
 		self.tassa = 0.0054
@@ -182,6 +182,7 @@ class AGENT:
 		return volume
 
 	def buy_order(self, asset):
+		return
 		print(f"{self.currentNameResult[asset]}EUR")
 		volume = self.money/self.get_price()
 		price = self.get_price()+0.01
@@ -191,6 +192,7 @@ class AGENT:
 		return dumps(resp.json())
 
 	def sell_order(self, asset):
+		return
 		print(f"{self.currentNameResult[asset]}EUR")
 		self.get_balance()
 		volume = self.get_volume()
