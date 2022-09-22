@@ -12,19 +12,18 @@ import base64
 from json import dumps,loads
 from time import sleep, time
 import pandas as pd
-from binance.spot import Spot
 import os
 
 class AGENT:
 	def __init__(self):
 		# dati api
-		self.api_key = os.environ['API_KEY']
-		self.api_sec = os.environ['API_SEC']
-		self.client = Spot(key=self.api_key, secret=self.api_sec)
+		self.api_url = "https://api.kraken.com"
+		self.api_key = "a"#os.environ['API_KEY']
+		self.api_sec = "a"#os.environ['API_SEC']
 
 		# parametri
-		self.tassa = 0.0
-		self.moltiplicatore = 1
+		self.tassa = 0.0054
+		self.moltiplicatore = 5
 		self.invest = 1 # 100%
 
 		# algoritmi
@@ -32,13 +31,13 @@ class AGENT:
 		self.A = [self.ETH]
 
 		# Parametri della simulazione
-		self.staticMoney = 10
-		self.staticETH = 0.0003
+		self.staticMoney = 95
+		self.staticETH = 0.03703
 
 		self.strategia = "-"
 		self.current = -1
 		self.currentName = ["ETH"]
-		self.currentNameResult = ["ETH"]
+		self.currentNameResult = ["XETH"]
 
 		self.money = 0
 		self.stocks = 0
@@ -50,79 +49,69 @@ class AGENT:
 		self.shorting = False
 
 	# ========================= funzioni di gestione ========================= #
-	def buy(self, now, data, forced=False, which=-1, short=False):
+	def buy(self, now, data, forced=False, which=-1):
 		self.A[0].df = data[0].astype(float)
 		self.A[0].analyzeDf()
 		if (not self.dentro and self.A[0].check_buy(-1) == True):
+			self.entrata = self.get_price()
+			return [True,f"Price:{self.entrata}"]
 			self.current = 0
-			self.ora = int((time()-60)*1000)
+			self.ora = time()-60
 			self.get_balance()
 			spesa = self.invest*self.money
-
-			if "short" not in self.A[0].strategia:
-				output = self.buy_order(0)
-			elif "short" in self.A[0].strategia:
-				self.shorting = True
-				output = self.sell_order(0)
+			output = self.buy_order(0)
 
 			k = 0
-			while k<8:
+			while k<6:
 				sleep(10)
-				flag,costo,tassa,price,volume = self.get_trade_history(self.ora)
+				flag,costo,tassa,price,volume = self.get_trade_history(ora)
 				if flag:
 					self.entrata = price
 					break
 				k += 1
 
-			if costo!=0:
-				self.dentro = True
+			self.dentro = True
 			self.get_balance()
-			return [True,f"Buy: Crypto:{self.stocks} {self.currentName[self.current]}({costo}*{self.moltiplicatore}={costo*self.moltiplicatore}$) / Balance:{self.money}$ || {output}"]
-
+			return [True,f"Buy: Crypto:{self.stocks} {self.currentName[self.current]}({costo}*{self.moltiplicatore}={costo*self.moltiplicatore}€) / Balance:{self.money}€ || {output}"]
 		elif forced:
+			self.entrata = self.get_price()
+			return [True,f"Price:{self.entrata}"]
 			self.current = which
-			self.ora = int((time()-60)*1000)
+			self.ora = time()-60
 			self.get_balance()
 			spesa = self.invest*self.money
-			if short==False:
-				output = self.buy_order(0)
-			elif short==True:
-				self.shorting = True
-				output = self.sell_order(0)
+			output = self.buy_order(0)
 
 			print(output)
-			k = 0
-			while k<8:
+			while True:
 				sleep(10)
-				flag,costo,tassa,price,volume = self.get_trade_history(self.ora)
+				flag,costo,tassa,price,volume = self.get_trade_history(ora)
 				print(flag,costo,tassa,price)
 				if flag:
 					self.entrata = price
 					break
-				k += 1
-			if costo!=0:
-				self.dentro = True
+
+			self.dentro = True
 			self.get_balance()
-			return [True,f"Buy: Crypto:{self.stocks} {self.currentName[self.current]}({costo}*{self.moltiplicatore}={costo*self.moltiplicatore}$) / Balance:{self.money}$ || {output}"]
+			return [True,f"Buy: Crypto:{self.stocks} {self.currentName[self.current]}({costo}*{self.moltiplicatore}={costo*self.moltiplicatore}€) / Balance:{self.money}€ || {output}"]
 		return [False,""]
 
 	def sell(self, now, data, forced=False):
 		self.A[0].df = data[0].astype(float)
 		self.A[0].analyzeDf()
 		if (self.dentro and self.A[self.current].check_sell(-1, self.entrata) == True) or forced:
+			prezzo = self.get_price()
+			guadagno = self.moltiplicatore*(prezzo*(1-self.tassa/2)-self.entrata*(1+self.tassa/2))
+			return [True,f"Vendita:{prezzo}, Guadagno percentuale:{guadagno}"]
 			self.dentro = False
-			if self.shorting==True or "short" in self.A[0].strategia:
-				output = self.buy_order(0)
-				self.shorting = False
-			else:
-				output = self.sell_order(0)
+			output = self.sell_order(0)
 
 			sleep(10)
 			self.get_balance()
 
 			m = self.current
 			self.current = -1
-			return [True,f"Sell: Crypto:{self.stocks} {self.currentName[m]} / Balance:{round(self.money,2)}$ || {output}"]
+			return [True,f"Sell: Crypto:{self.stocks} {self.currentName[m]} / Balance:{round(self.money,2)}€ || {output}"]
 		return [False,""]
 
 	def get_total_balance(self):
@@ -135,92 +124,79 @@ class AGENT:
 		self.A[0].analyzeDf()
 		return f"{self.currentName[0]}: EMAb={round(self.A[0].df[f'EMA{self.A[0].periodiB}'].iloc[-1],2)} / EMAl={round(self.A[0].df[f'EMA{self.A[0].periodiL}'].iloc[-1],2)} / Psar>={self.A[0].df['psar_di'].iloc[-1]} / Aroon={round(self.A[0].df['aroon_indicator'].iloc[-1],2)} / ROC={round(self.A[0].df['rocM'].iloc[-1],2)}"
 
+	# ========================= funzioni di comunicazione ========================= #
+	def get_kraken_signature(self, urlpath, data, secret):
+		postdata = urllib.parse.urlencode(data)
+		encoded = (str(data['nonce']) + postdata).encode()
+		message = urlpath.encode() + hashlib.sha256(encoded).digest()
 
-	# ========================= funzioni di richiesta ========================= #	
+		mac = hmac.new(base64.b64decode(secret), message, hashlib.sha512)
+		sigdigest = base64.b64encode(mac.digest())
+		return sigdigest.decode()
+
+	def kraken_request(self, url_path, data):
+		headers = {"API-Key": self.api_key, "API-Sign": self.get_kraken_signature(url_path, data, self.api_sec)}
+		resp = requests.post((self.api_url + url_path), headers=headers, data=data)
+		return resp
+
+	# ========================= funzioni di richiesta ========================= #
 	def get_price(self):
-		return float(requests.get(f'https://api.binance.com/api/v3/ticker/price?symbol={self.currentName[0]}BUSD').json()["price"])
+		return float(requests.get(f'https://api.kraken.com/0/public/Ticker?pair={self.currentName[self.current]}EUR').json()['result'][f'{self.currentNameResult[self.current]}ZEUR']['a'][0])
 
 	def get_balance(self):
-		params = {
-			'recvWindow': 60000
-		}
-		v = self.client.account(**params)["balances"]
+		data = {"nonce":str(int(1000*time()))}
+		resp = self.kraken_request("/0/private/Balance", data)
+		data = resp.json()["result"]
 		money = 0
 		stocks= 0
-		for i in v:
-			if i["asset"] == "ETH":
-				stocks = float(i["free"])-self.staticETH
-			if i["asset"] == "BUSD":
-				money = float(i["free"])-self.staticMoney
-			if i["asset"] == "EUR":
-				self.euro = float(i["free"])
+		if "ZEUR" in data:
+			money = float(data["ZEUR"])-self.staticMoney
+		if self.currentNameResult[0] in data:
+			stocks = float(data[self.currentNameResult[0]])-self.staticETH
 		self.money = money
 		self.stocks = stocks
 		return money,stocks
 
 	def get_trade_history(self, ora):
-		params = {
-			'symbol': 'ETHBUSD',
-			'recvWindow': 60000
-		}
-		v = self.client.my_trades(**params)
-		df = pd.DataFrame(v)
-		if not df.empty:
-			df = df.loc[df["time"]>ora].set_index("time").sort_index(ascending=False)
-			costo = df["quoteQty"].astype(float).sum()
-			tassa = df["commission"].astype(float).sum()
-			volume = df["qty"].astype(float).sum()
-			price = df["price"].astype(float).mean()
+		data = {"nonce": str(int(1000*time())),"trades": True, "start": ora}
+		resp = self.kraken_request('/0/private/TradesHistory', data)
+		if resp.json()["result"]["count"]>0:
+			v = []
+			dic = {}
+			for i in resp.json()["result"]["trades"]:
+				v.append(resp.json()["result"]["trades"][i])
+			dic["0"] = v
+			dic = dumps(dic)
+			df = pd.DataFrame.from_dict(loads(dic)["0"])
+			df = df.set_index("time").sort_index(ascending=False)
+			costo = df["cost"].astype(float).sum()
+			tassa = df["fee"].astype(float).sum()
+			volume = df["vol"].astype(float).sum()
+			price = df["fee"].astype(float).mean()
 			return True,costo,tassa,price,volume
 		else:
 			return False,0,0,0,0
 
 	def get_volume(self):
-		flag,costo,tassa,price,volume = self.get_trade_history(self.ora)
+		flag,costo,tassa,price,volume = self.get_trade_history(time()-600)
 		return volume
 
 	def buy_order(self, asset):
 		print(f"{self.currentNameResult[asset]}EUR")
-		self.get_balance()
-
-		if self.shorting==True or "short" in self.A[0].strategia:
-			params = {
-				'symbol': 'ETHBUSD',
-				'side': 'BUY',
-				'type': 'MARKET',
-				'quoteOrderQty': round(self.money/2,2),
-				'recvWindow': 60000
-			}
-		else:
-			params = {
-				'symbol': 'ETHBUSD',
-				'side': 'BUY',
-				'type': 'MARKET',
-				'quoteOrderQty': round(self.money,2),
-				'recvWindow': 60000
-			}
-
-		v = self.client.new_order(**params)
-		return v
+		volume = self.money/self.get_price()
+		price = self.get_price()+0.01
+		print(">",volume,price)
+		data = {"nonce": str(int(1000*time())),"ordertype": "limit","type": "buy","volume": volume,"pair": f"{self.currentName[asset]}EUR", "price": price, "leverage": self.moltiplicatore, "expiretm": 60}
+		resp = self.kraken_request('/0/private/AddOrder', data)
+		return dumps(resp.json())
 
 	def sell_order(self, asset):
 		print(f"{self.currentNameResult[asset]}EUR")
 		self.get_balance()
-		if self.shorting==True or "short" in self.A[0].strategia:
-			params = {
-				'symbol': 'ETHBUSD',
-				'side': 'SELL',
-				'type': 'MARKET',
-				'quantity': round(self.stocks,5),
-				'recvWindow': 60000
-			}
-		else:
-			params = {
-				'symbol': 'ETHBUSD',
-				'side': 'SELL',
-				'type': 'MARKET',
-				'quantity': round(self.stocks,5),#/2
-				'recvWindow': 60000
-			}
-		v = self.client.new_order(**params)
-		return v
+		volume = self.get_volume()
+		price = self.get_price()
+		print(">",volume,price)
+		data = {"nonce": str(int(1000*time())),"ordertype": "limit","type": "sell","volume": volume,"pair": f"{self.currentName[asset]}EUR","price": price, "leverage": self.moltiplicatore}
+		resp = self.kraken_request('/0/private/AddOrder', data)
+		print(">>",resp.json())
+		return dumps(resp.json())
