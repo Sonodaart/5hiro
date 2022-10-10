@@ -12,7 +12,9 @@ import os
 from yfinance import download
 from datetime import datetime, timedelta
 
-client = discord.Client()
+#pip install -r requirements.txt
+
+client = discord.Client(intents=discord.Intents.default())
 SESSION = True
 Last_update = datetime.fromtimestamp(time()).strftime("%H:%M:%S")
 Last_minute = -1
@@ -39,7 +41,7 @@ def check_time():
 	else:
 		soglia[1] = floor(soglia[1]/5)*5
 
-	if now[0] >= soglia[0] and now[1] >= soglia[1]+5 and now[2]>20:
+	if now[0] >= soglia[0] and now[1] >= soglia[1]+5 and now[2]>35:
 		Last_update = datetime.fromtimestamp(time()).strftime("%H:%M:%S")
 		return True
 
@@ -88,8 +90,8 @@ async def on_ready():
 					now = datetime.fromtimestamp(time()).strftime("%H:%M")
 					await client.get_channel(attivitaCH).send(f"Connection check({now}).")
 					data = get_data(Agent.currentName)
-					info0 = data[0].iloc[-1]
-					await client.get_channel(datiCH).send(f"{Agent.currentName[0]}:{info0.name}| Open:{info0['Open']}/Low:{info0['Low']}/High:{info0['High']}/Close:{info0['Close']}")
+					#info0 = data[0].iloc[-1]
+					#await client.get_channel(datiCH).send(f"{Agent.currentName[0]}:{info0.name}| Open:{info0['Open']}/Low:{info0['Low']}/High:{info0['High']}/Close:{info0['Close']}")
 					flag, r = process_data(data)
 					if flag:
 						await client.get_channel(transazioniCH).send(r)	
@@ -116,9 +118,13 @@ async def on_ready():
 async def on_message(message):
 	global SESSION
 	global ohlc
+	print(message,message.content)
 	if message.author == client.user:
 		return
 
+	if message.content[0] != ".":
+		return
+	message.content = message.content[1:]
 	if message.channel.id==azioniCH:
 		if message.content=="shutdown" or message.content=="s":
 			SESSION = not SESSION
@@ -129,7 +135,7 @@ async def on_message(message):
 		elif message.content=="help" or message.content=="h":
 			await message.channel.send(f"help-h\nversion-v\nshutdown/execute-s\nbalance-b\nstate-c\nforce buy 0\nforce sell\nbook\nenter/exit e")
 		elif message.content=="version" or message.content=="v":
-			await message.channel.send(f"K0.0.2")
+			await message.channel.send(f"K0.0.1")
 		elif message.content=="enter" or message.content=="exit" or message.content=="e":
 			Agent.dentro = not Agent.dentro
 			await message.channel.send(f"Stato corrente aggiornato: dentro={Agent.dentro}")

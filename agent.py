@@ -54,7 +54,6 @@ class AGENT:
 		self.A[0].analyzeDf()
 		if (not self.dentro and self.A[0].check_buy(-1) == True):
 			self.entrata = self.get_price()
-			return [True,f"Price:{self.entrata}"]
 			self.current = 0
 			self.ora = time()-60
 			self.get_balance()
@@ -72,10 +71,10 @@ class AGENT:
 
 			self.dentro = True
 			self.get_balance()
+			return [True,f"Price:{self.entrata}"]
 			return [True,f"Buy: Crypto:{self.stocks} {self.currentName[self.current]}({costo}*{self.moltiplicatore}={costo*self.moltiplicatore}€) / Balance:{self.money}€ || {output}"]
 		elif forced:
 			self.entrata = self.get_price()
-			return [True,f"Price:{self.entrata}"]
 			self.current = which
 			self.ora = time()-60
 			self.get_balance()
@@ -93,6 +92,7 @@ class AGENT:
 
 			self.dentro = True
 			self.get_balance()
+			return [True,f"Price:{self.entrata}"]
 			return [True,f"Buy: Crypto:{self.stocks} {self.currentName[self.current]}({costo}*{self.moltiplicatore}={costo*self.moltiplicatore}€) / Balance:{self.money}€ || {output}"]
 		return [False,""]
 
@@ -102,7 +102,6 @@ class AGENT:
 		if (self.dentro and self.A[self.current].check_sell(-1, self.entrata) == True) or forced:
 			prezzo = self.get_price()
 			guadagno = self.moltiplicatore*(prezzo*(1-self.tassa/2)-self.entrata*(1+self.tassa/2))
-			return [True,f"Vendita:{prezzo}, Guadagno percentuale:{guadagno}"]
 			self.dentro = False
 			output = self.sell_order(0)
 
@@ -111,6 +110,7 @@ class AGENT:
 
 			m = self.current
 			self.current = -1
+			return [True,f"Vendita:{prezzo}, Guadagno percentuale:{guadagno}"]
 			return [True,f"Sell: Crypto:{self.stocks} {self.currentName[m]} / Balance:{round(self.money,2)}€ || {output}"]
 		return [False,""]
 
@@ -146,6 +146,11 @@ class AGENT:
 	def get_balance(self):
 		data = {"nonce":str(int(1000*time()))}
 		resp = self.kraken_request("/0/private/Balance", data)
+		print(resp.json())
+		if resp.json()['error'] != []:
+			sleep(10)
+			self.get_balance()
+			return
 		data = resp.json()["result"]
 		money = 0
 		stocks= 0
@@ -182,23 +187,23 @@ class AGENT:
 		return volume
 
 	def buy_order(self, asset):
-		return
+		return False
 		print(f"{self.currentNameResult[asset]}EUR")
 		volume = self.money/self.get_price()
 		price = self.get_price()+0.01
 		print(">",volume,price)
-		data = {"nonce": str(int(1000*time())),"ordertype": "limit","type": "buy","volume": volume,"pair": f"{self.currentName[asset]}EUR", "price": price, "leverage": self.moltiplicatore, "expiretm": 60}
+		data = 0#{"nonce": str(int(1000*time())),"ordertype": "limit","type": "buy","volume": volume,"pair": f"{self.currentName[asset]}EUR", "price": price, "leverage": self.moltiplicatore, "expiretm": 60}
 		resp = self.kraken_request('/0/private/AddOrder', data)
 		return dumps(resp.json())
 
 	def sell_order(self, asset):
-		return
+		return False
 		print(f"{self.currentNameResult[asset]}EUR")
 		self.get_balance()
 		volume = self.get_volume()
 		price = self.get_price()
 		print(">",volume,price)
-		data = {"nonce": str(int(1000*time())),"ordertype": "limit","type": "sell","volume": volume,"pair": f"{self.currentName[asset]}EUR","price": price, "leverage": self.moltiplicatore}
+		data = 0#{"nonce": str(int(1000*time())),"ordertype": "limit","type": "sell","volume": volume,"pair": f"{self.currentName[asset]}EUR","price": price, "leverage": self.moltiplicatore}
 		resp = self.kraken_request('/0/private/AddOrder', data)
 		print(">>",resp.json())
 		return dumps(resp.json())

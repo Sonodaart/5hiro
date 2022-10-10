@@ -39,8 +39,7 @@ class AlgorithmETH:
 		rocMACD = 0.3<self.df['rocM'][t] and self.df['rocBreve'][t]<1.5
 		aroonMACD = self.df['aroon_indicator'][t]>50
 		sarM = self.df['psar_di'][t]==False
-		bollingerMACD = self.df['bollinger_wband'][t] > 1 or True
-		jump = self.df['jump'][t]==False
+		bollingerMACD = self.df['bollinger_wband'][t] > 1.5
 		
 		Smacd = self.df[f'EMA{self.Breve}'][t]<self.df[f'EMA{self.Lunga}'][t]
 		SrocMACD = -2<self.df['rocM'][t]<0.3 and self.df['rocLungo'][t]<-0.5 and -2<self.df['rocBreve'][t]<-0.3
@@ -48,11 +47,11 @@ class AlgorithmETH:
 		Sbollinger = self.df['bollinger_pband'][t-10]-self.df['bollinger_pband'][t]<0.1 and self.df['bollinger_pband'][t]>0.3
 		SsarM = self.df['psar_di'][t]==True
 		
-		if macd and rocMACD and aroonMACD and jump and bollingerMACD:
+		if macd and rocMACD and aroonMACD:
 			adx = self.df['adx'][t]>40
 			if sarM and adx:
 				self.strategia = "MACD"
-		elif Smacd and SrocMACD and SaroonMACD and Sbollinger and False:
+		elif Smacd and SrocMACD and SaroonMACD and Sbollinger:
 			adx = self.df['adx'][t]>20
 			if SsarM and adx:
 				self.short = True
@@ -70,7 +69,7 @@ class AlgorithmETH:
 
 	def stopCallMacd(self, t, entrata):
 		sar = self.moltiplicatore*(self.df['Close'][t]*(1-self.tassa)-entrata)/entrata>=0 and self.df['psar_di'][t]==True
-		upper = self.df['Close'][t]>entrata*(1+self.stopWinMACD)#*(1+self.df['atr_perc'][t]))
+		upper = self.df['Close'][t]>entrata*(1+self.stopWinMACD)#*(1+self.df['atr_pself.moltiplicatore*(self.df['Close'][t]*(1-self.tassa)-entrata)/entrata>=0 and erc'][t]))
 		lower = self.df['Close'][t]<entrata*(1-self.stopLossMACD)#*(1+self.df['atr_perc'][t]))
 		return upper or lower or sar
 
